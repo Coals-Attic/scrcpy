@@ -1,5 +1,7 @@
 #ifndef SC_CLOCK_H
 #define SC_CLOCK_H
+#include <time.h>
+#include <errno.h>
 
 #include "common.h"
 
@@ -66,5 +68,8 @@ sc_clock_update(struct sc_clock *clock, sc_tick system, sc_tick stream);
 
 sc_tick
 sc_clock_to_system_time(struct sc_clock *clock, sc_tick stream);
+
+int
+sc_msleep(long msec);
 
 #endif

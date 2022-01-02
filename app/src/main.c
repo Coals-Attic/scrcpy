@@ -15,6 +15,8 @@
 #include "scrcpy.h"
 #include "util/log.h"
 
+#define COAL_VERSION "1.0.0"
+
 static void
 print_version(void) {
     fprintf(stderr, "scrcpy %s\n\n", SCRCPY_VERSION);
@@ -49,6 +51,7 @@ main(int argc, char *argv[]) {
 
     printf("scrcpy " SCRCPY_VERSION
            " <https://github.com/Genymobile/scrcpy>\n");
+    printf("custom coal build " COAL_VERSION "\n");
 
     struct scrcpy_cli_args args = {
         .opts = scrcpy_options_default,

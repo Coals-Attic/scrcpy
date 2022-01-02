@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "common.h": "c",
+        "compat.h": "c",
+        "version.h": "c",
+        "sdl_version.h": "c",
+        "begin_code.h": "c",
+        "sdl_stdinc.h": "c",
+        "sdl_config.h": "c",
+        "_real_sdl_config.h": "c",
+        "sdl_platform.h": "c",
+        "input_manager.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
+}

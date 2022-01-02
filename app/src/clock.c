@@ -109,3 +109,24 @@ sc_clock_to_system_time(struct sc_clock *clock, sc_tick stream) {
     assert(clock->count > 1); // sc_clock_update() must have been called
     return (sc_tick) (stream * clock->slope) + clock->offset;
 }
+
+int sc_msleep(long msec)
+{
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}

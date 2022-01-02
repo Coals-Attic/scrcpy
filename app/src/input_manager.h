@@ -14,12 +14,33 @@
 #include "trait/key_processor.h"
 #include "trait/mouse_processor.h"
 
-struct input_manager {
+struct sc_joystick_down {
+    bool up;
+    bool down;
+    bool left;
+    bool right;
+    SDL_Keycode started_by;
+};
+
+struct input_manager
+{
     struct controller *controller;
     struct screen *screen;
 
     struct sc_key_processor *kp;
     struct sc_mouse_processor *mp;
+
+    // Joystick mode specifics
+    struct sc_point joystick_pos;
+    struct sc_point crouch_btn_pos;
+    struct sc_point jump_btn_pos;
+    struct sc_point reload_btn_pos;
+    struct sc_point switch_wpn_btn_pos;
+    struct sc_joystick_down joystick_down;
+    struct sc_point camera_pos;
+    int js_mv_offset;
+    bool joystick_mode;
+    bool vjoystick_moving;
 
     bool control;
     bool forward_all_clicks;
