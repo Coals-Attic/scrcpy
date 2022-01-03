@@ -32,15 +32,24 @@ struct input_manager
 
     // Joystick mode specifics
     struct sc_point joystick_pos;
+    struct sc_point ads_btn_pos;
     struct sc_point crouch_btn_pos;
     struct sc_point jump_btn_pos;
     struct sc_point reload_btn_pos;
     struct sc_point switch_wpn_btn_pos;
+    struct sc_point scorestreak_btn_pos;
+    struct sc_point skill_btn_pos;
+    struct sc_point chat_btn_pos; // 2072 343
+    struct sc_point throwable_btn_pos; // 1619 932
     struct sc_joystick_down joystick_down;
     struct sc_point camera_pos;
+    float camera_sensitivity_normal;
+    float camera_sensitivity_shooting;
     int js_mv_offset;
+    int scorestreak_offset;
     bool joystick_mode;
     bool vjoystick_moving;
+    bool vjoystick_shooting;
 
     bool control;
     bool forward_all_clicks;

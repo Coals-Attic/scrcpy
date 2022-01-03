@@ -68,6 +68,9 @@ input_manager_init(struct input_manager *im, struct controller *controller,
     im->joystick_down.left = false;
     im->joystick_down.right = false;
 
+    im->ads_btn_pos.x = 2000;
+    im->ads_btn_pos.y = 790;
+
     im->crouch_btn_pos.x = 2032;
     im->crouch_btn_pos.y = 973;
 
@@ -80,11 +83,26 @@ input_manager_init(struct input_manager *im, struct controller *controller,
     im->switch_wpn_btn_pos.x = 1290;
     im->switch_wpn_btn_pos.y = 964;
 
+    im->scorestreak_btn_pos.x = 1013;
+    im->scorestreak_btn_pos.y = 957;
+    im->scorestreak_offset = 120;
+    im->skill_btn_pos.x = 2247;
+    im->skill_btn_pos.y = 405;
+
+    im->chat_btn_pos.x = 2072;
+    im->chat_btn_pos.y = 343;
+
+    im->throwable_btn_pos.x = 1619;
+    im->throwable_btn_pos.y = 932;
+
     im->camera_pos.x = 1250;
     im->camera_pos.y = 542;
+    im->camera_sensitivity_normal = 1.25f;
+    im->camera_sensitivity_shooting = 1.25f;
 
     im->joystick_mode = false;
     im->vjoystick_moving = false;
+    im->vjoystick_shooting = false;
     im->controller = controller;
     im->screen = screen;
     im->kp = kp;
@@ -445,10 +463,200 @@ input_manager_process_key(struct input_manager *im,
         }
     }
 
+    // The shortcut modifier is pressed
+    if (smod) {
+        int action = down ? ACTION_DOWN :
+                ACTION_UP;
+
+        switch (keycode)
+        {
+            case SDLK_q:
+                // Enable or disable joystick mode
+                if (down && control && !shift && !repeat)
+                {
+                    im->joystick_mode = !im->joystick_mode;
+
+                    im->joystick_pos.x = 340;
+                    im->joystick_pos.y = 865;
+                    im->camera_pos.x = 1450;
+                    im->camera_pos.y = 542;
+
+                    // Toggle camera
+                    simulate_virtual_finger_pid(
+                        im,
+                        im->joystick_mode ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP,
+                        im->camera_pos,
+                        2
+                    );
+
+                    sc_msleep(50);
+
+                    // Mouse trap camera
+                    SDL_SetRelativeMouseMode(
+                        im->joystick_mode ? SDL_TRUE : SDL_FALSE
+                    );
+
+                    LOGI("Joystick mode %s", im->joystick_mode ? "enabled" : "disabled");
+                }
+                return;
+            case SDLK_h:
+                if (control && !shift && !repeat)
+                {
+                    action_home(controller, action);
+                }
+                return;
+            case SDLK_b: // fall-through
+            case SDLK_BACKSPACE:
+                if (control && !shift && !repeat)
+                {
+                    action_back(controller, action);
+                }
+                return;
+            case SDLK_s:
+                if (control && !shift && !repeat)
+                {
+                    action_app_switch(controller, action);
+                }
+                return;
+            case SDLK_m:
+                if (control && !shift && !repeat)
+                {
+                    action_menu(controller, action);
+                }
+                return;
+            case SDLK_p:
+                if (control && !shift && !repeat)
+                {
+                    action_power(controller, action);
+                }
+                return;
+            case SDLK_o:
+                if (control && !repeat && down)
+                {
+                    enum screen_power_mode mode = shift
+                                                        ? SCREEN_POWER_MODE_NORMAL
+                                                        : SCREEN_POWER_MODE_OFF;
+                    set_screen_power_mode(controller, mode);
+                }
+                return;
+            case SDLK_DOWN:
+                if (control && !shift)
+                {
+                    // forward repeated events
+                    action_volume_down(controller, action);
+                }
+                return;
+            case SDLK_UP:
+                if (control && !shift)
+                {
+                    // forward repeated events
+                    action_volume_up(controller, action);
+                }
+                return;
+            case SDLK_LEFT:
+                if (!shift && !repeat && down)
+                {
+                    rotate_client_left(im->screen);
+                }
+                return;
+            case SDLK_RIGHT:
+                if (!shift && !repeat && down)
+                {
+                    rotate_client_right(im->screen);
+                }
+                return;
+            case SDLK_c:
+                if (control && !shift && !repeat && down)
+                {
+                    get_device_clipboard(controller,
+                                            GET_CLIPBOARD_COPY_KEY_COPY);
+                }
+                return;
+            case SDLK_x:
+                if (control && !shift && !repeat && down)
+                {
+                    get_device_clipboard(controller,
+                                            GET_CLIPBOARD_COPY_KEY_CUT);
+                }
+                return;
+            case SDLK_v:
+                if (control && !repeat && down)
+                {
+                    if (shift || im->legacy_paste)
+                    {
+                        // inject the text as input events
+                        clipboard_paste(controller);
+                    }
+                    else
+                    {
+                        // store the text in the device clipboard and paste,
+                        // without requesting an acknowledgment
+                        set_device_clipboard(controller, true,
+                                                SC_SEQUENCE_INVALID);
+                    }
+                }
+                return;
+            case SDLK_f:
+                if (!shift && !repeat && down)
+                {
+                    screen_switch_fullscreen(im->screen);
+                }
+                return;
+            case SDLK_w:
+                if (!shift && !repeat && down)
+                {
+                    screen_resize_to_fit(im->screen);
+                }
+                return;
+            case SDLK_g:
+                if (!shift && !repeat && down)
+                {
+                    screen_resize_to_pixel_perfect(im->screen);
+                }
+                return;
+            case SDLK_i:
+                if (!shift && !repeat && down)
+                {
+                    switch_fps_counter_state(&im->screen->fps_counter);
+                }
+                return;
+            case SDLK_n:
+                if (control && !repeat && down)
+                {
+                    if (shift)
+                    {
+                        collapse_panels(controller);
+                    }
+                    else if (im->key_repeat == 0)
+                    {
+                        expand_notification_panel(controller);
+                    }
+                    else
+                    {
+                        expand_settings_panel(controller);
+                    }
+                }
+                return;
+            case SDLK_r:
+                if (control && !shift && !repeat && down)
+                {
+                    rotate_device(controller);
+                }
+                return;
+        }
+
+        return;
+    }
+
     // Custom, joystick-mode specifics
     if (im->joystick_mode)
     {
         switch (keycode) {
+            case SDLK_ESCAPE:
+                // Reset joystick pos to the first value
+                im->joystick_pos.x = 340;
+                im->joystick_pos.y = 865;
+                return;
             case SDLK_LSHIFT:
                 // Crouch
                 if (down) {
@@ -482,6 +690,67 @@ input_manager_process_key(struct input_manager *im,
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->switch_wpn_btn_pos, 6);
                 } else {
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->switch_wpn_btn_pos, 6);
+                }
+
+                return;
+            case SDLK_1:
+                if (down) {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->scorestreak_btn_pos, 7);
+                } else {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->scorestreak_btn_pos, 7);
+                }
+
+                return;
+            case SDLK_2:
+                // Modify scorestrea to substract scorestreak_offset from x
+                if (down) {
+                    im->scorestreak_btn_pos.x -= im->scorestreak_offset;
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->scorestreak_btn_pos, 8);
+                    im->scorestreak_btn_pos.x += im->scorestreak_offset;
+                } else {
+                    im->scorestreak_btn_pos.x -= im->scorestreak_offset;
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->scorestreak_btn_pos, 8);
+                    im->scorestreak_btn_pos.x += im->scorestreak_offset;
+                }
+
+                return;
+            case SDLK_3:
+                // Modify scorestreak to add scorestreak_offset to x
+                if (down) {
+                    im->scorestreak_btn_pos.x -= im->scorestreak_offset * 2;
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->scorestreak_btn_pos, 9);
+                    im->scorestreak_btn_pos.x += im->scorestreak_offset  * 2;
+                } else {
+                    im->scorestreak_btn_pos.x -= im->scorestreak_offset  * 2;
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->scorestreak_btn_pos, 9);
+                    im->scorestreak_btn_pos.x += im->scorestreak_offset  * 2;
+                }
+
+                return;
+            case SDLK_q:
+                // Press the operator skill button
+                if (down) {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->skill_btn_pos, 10);
+                } else {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->skill_btn_pos, 10);
+                }
+
+                return;
+            case SDLK_f:
+                // Press the throwable button
+                if (down) {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->throwable_btn_pos, 11);
+                } else {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->throwable_btn_pos, 11);
+                }
+
+                return;
+            case SDLK_c:
+                // Press the chat button
+                if (down) {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->chat_btn_pos, 12);
+                } else {
+                    simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->chat_btn_pos, 12);
                 }
 
                 return;
@@ -521,8 +790,11 @@ input_manager_process_key(struct input_manager *im,
 
                 if (!down && im->joystick_down.started_by == keycode) {
                     LOGI("Releasing movement");
+                    im->joystick_pos.x = 340;
+                    im->joystick_pos.y = 865;
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->joystick_pos, 1);
                     im->vjoystick_moving = false;
+
                     return;
                 }
 
@@ -562,6 +834,8 @@ input_manager_process_key(struct input_manager *im,
 
                 if (!down && im->joystick_down.started_by == keycode) {
                     LOGI("Releasing movement");
+                    im->joystick_pos.x = 340;
+                    im->joystick_pos.y = 865;
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->joystick_pos, 1);
                     im->vjoystick_moving = false;
                     return;
@@ -603,6 +877,8 @@ input_manager_process_key(struct input_manager *im,
 
                 if (!down && im->joystick_down.started_by == keycode) {
                     LOGI("Releasing movement");
+                    im->joystick_pos.x = 340;
+                    im->joystick_pos.y = 865;
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->joystick_pos, 1);
                     im->vjoystick_moving = false;
                     return;
@@ -644,193 +920,15 @@ input_manager_process_key(struct input_manager *im,
 
                 if (!down && im->joystick_down.started_by == keycode) {
                     LOGI("Releasing movement");
+                    im->joystick_pos.x = 340;
+                    im->joystick_pos.y = 865;
                     simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->joystick_pos, 1);
                     im->vjoystick_moving = false;
                     return;
                 }
 
                 return;
-        } // 1200 542
-    }
-
-    // The shortcut modifier is pressed
-    if (smod) {
-        int action = down ? ACTION_DOWN :
-                ACTION_UP;
-                switch (keycode)
-                {
-                case SDLK_q:
-                    // Enable or disable joystick mode
-                    if (down && control && !shift && !repeat)
-                    {
-                        im->joystick_mode = !im->joystick_mode;
-
-                        // Toggle camera
-                        simulate_virtual_finger_pid(
-                            im,
-                            im->joystick_mode ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP,
-                            im->camera_pos,
-                            2
-                        );
-
-                        // Wait a little bit to make sure the command is executed
-                        sc_msleep(50);
-
-                        // Mouse trap camera
-                        SDL_SetRelativeMouseMode(
-                            im->joystick_mode ? SDL_TRUE : SDL_FALSE
-                        );
-
-                        LOGI("Joystick mode %s", im->joystick_mode ? "enabled" : "disabled");
-                    }
-                    return;
-                case SDLK_h:
-                    if (control && !shift && !repeat)
-                    {
-                        action_home(controller, action);
-                    }
-                    return;
-                case SDLK_b: // fall-through
-                case SDLK_BACKSPACE:
-                    if (control && !shift && !repeat)
-                    {
-                        action_back(controller, action);
-                    }
-                    return;
-                case SDLK_s:
-                    if (control && !shift && !repeat)
-                    {
-                        action_app_switch(controller, action);
-                    }
-                    return;
-                case SDLK_m:
-                    if (control && !shift && !repeat)
-                    {
-                        action_menu(controller, action);
-                    }
-                    return;
-                case SDLK_p:
-                    if (control && !shift && !repeat)
-                    {
-                        action_power(controller, action);
-                    }
-                    return;
-                case SDLK_o:
-                    if (control && !repeat && down)
-                    {
-                        enum screen_power_mode mode = shift
-                                                          ? SCREEN_POWER_MODE_NORMAL
-                                                          : SCREEN_POWER_MODE_OFF;
-                        set_screen_power_mode(controller, mode);
-                    }
-                    return;
-                case SDLK_DOWN:
-                    if (control && !shift)
-                    {
-                        // forward repeated events
-                        action_volume_down(controller, action);
-                    }
-                    return;
-                case SDLK_UP:
-                    if (control && !shift)
-                    {
-                        // forward repeated events
-                        action_volume_up(controller, action);
-                    }
-                    return;
-                case SDLK_LEFT:
-                    if (!shift && !repeat && down)
-                    {
-                        rotate_client_left(im->screen);
-                    }
-                    return;
-                case SDLK_RIGHT:
-                    if (!shift && !repeat && down)
-                    {
-                        rotate_client_right(im->screen);
-                    }
-                    return;
-                case SDLK_c:
-                    if (control && !shift && !repeat && down)
-                    {
-                        get_device_clipboard(controller,
-                                             GET_CLIPBOARD_COPY_KEY_COPY);
-                    }
-                    return;
-                case SDLK_x:
-                    if (control && !shift && !repeat && down)
-                    {
-                        get_device_clipboard(controller,
-                                             GET_CLIPBOARD_COPY_KEY_CUT);
-                    }
-                    return;
-                case SDLK_v:
-                    if (control && !repeat && down)
-                    {
-                        if (shift || im->legacy_paste)
-                        {
-                            // inject the text as input events
-                            clipboard_paste(controller);
-                        }
-                        else
-                        {
-                            // store the text in the device clipboard and paste,
-                            // without requesting an acknowledgment
-                            set_device_clipboard(controller, true,
-                                                 SC_SEQUENCE_INVALID);
-                        }
-                    }
-                    return;
-                case SDLK_f:
-                    if (!shift && !repeat && down)
-                    {
-                        screen_switch_fullscreen(im->screen);
-                    }
-                    return;
-                case SDLK_w:
-                    if (!shift && !repeat && down)
-                    {
-                        screen_resize_to_fit(im->screen);
-                    }
-                    return;
-                case SDLK_g:
-                    if (!shift && !repeat && down)
-                    {
-                        screen_resize_to_pixel_perfect(im->screen);
-                    }
-                    return;
-                case SDLK_i:
-                    if (!shift && !repeat && down)
-                    {
-                        switch_fps_counter_state(&im->screen->fps_counter);
-                    }
-                    return;
-                case SDLK_n:
-                    if (control && !repeat && down)
-                    {
-                        if (shift)
-                        {
-                            collapse_panels(controller);
-                        }
-                        else if (im->key_repeat == 0)
-                        {
-                            expand_notification_panel(controller);
-                        }
-                        else
-                        {
-                            expand_settings_panel(controller);
-                        }
-                    }
-                    return;
-                case SDLK_r:
-                    if (control && !shift && !repeat && down)
-                    {
-                        rotate_device(controller);
-                    }
-                    return;
         }
-
-        return;
     }
 
     if (!control) {
@@ -877,14 +975,28 @@ input_manager_process_mouse_motion(struct input_manager *im,
     // Joystick mode specific handling
     if (im->joystick_mode) {
         // In joystick mode, we move the camera
-        im->camera_pos.x += event->xrel;
-        im->camera_pos.y += event->yrel;
+        im->camera_pos.x += (int) (
+            event->xrel *
+            (im->vjoystick_shooting
+            ? im->camera_sensitivity_shooting
+            : im->camera_sensitivity_normal)
+        );
+
+        im->camera_pos.y += (int) (
+            event->yrel *
+            (im->vjoystick_shooting
+            ? im->camera_sensitivity_shooting
+            : im->camera_sensitivity_normal)
+        );
+
         simulate_virtual_finger_pid(
             im,
             AMOTION_EVENT_ACTION_MOVE,
             im->camera_pos,
             2
         );
+
+        return;
     }
 
     if (im->forward_all_clicks)
@@ -930,26 +1042,20 @@ input_manager_process_mouse_button(struct input_manager *im,
     bool down = event->type == SDL_MOUSEBUTTONDOWN;
 
     // Joystick mode specifics
-    struct sc_point ads;
-    struct sc_point mouse;
-    ads.x = 1692;
-    ads.y = 73;
-    mouse.x = 100;
-    mouse.y = 585;
     if (im->joystick_mode) {
         if (down) {
             // Start shooting
             LOGI("Shooting!");
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, ads, -3);
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, ads, -3);
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, mouse, 0);
+            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, im->ads_btn_pos, 13);
+            im->vjoystick_shooting = true;
         } else {
             // Stop shooting
             LOGI("Stopping fire");
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_DOWN, ads, -3);
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, ads, -3);
-            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, mouse, 0);
+            sc_msleep(25); // Sleep is required, otherwise the events may overlap
+            simulate_virtual_finger_pid(im, AMOTION_EVENT_ACTION_UP, im->ads_btn_pos, 13);
+            im->vjoystick_shooting = false;
         }
+        return;
     }
 
     if (!im->forward_all_clicks) {
