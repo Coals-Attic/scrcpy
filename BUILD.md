@@ -135,7 +135,12 @@ You also need the JDK to build the server:
 From _Debian_ or any Debian-based distro really:
 
 ```bash
-sudo apt install mingw-w64 mingw-w64-tools meson openjdk-11-jdk
+sudo apt install mingw-w64 mingw-w64-tools 
+
+sudo apt install ffmpeg libsdl2-2.0-0 adb wget \
+                 gcc git pkg-config meson ninja-build libsdl2-dev \
+                 libavcodec-dev libavdevice-dev libavformat-dev libavutil-dev \
+                 libusb-1.0-0 libusb-1.0-0-dev openjdk-11-jdk
 ```
 
 Then generate the releases:
