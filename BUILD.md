@@ -130,16 +130,12 @@ sudo dnf install java-devel
 
 This is the preferred method (and the way the release is built).
 
-From _Debian_, install _mingw_:
-
-```bash
-sudo apt install mingw-w64 mingw-w64-tools
-```
-
 You also need the JDK to build the server:
 
+From _Debian_ or any Debian-based distro really:
+
 ```bash
-sudo apt install openjdk-11-jdk
+sudo apt install mingw-w64 mingw-w64-tools meson openjdk-11-jdk
 ```
 
 Then generate the releases:
